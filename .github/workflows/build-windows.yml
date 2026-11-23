@@ -45,20 +45,20 @@ jobs:
             mingw-w64-ucrt-x86_64-libcddb \
             mingw-w64-ucrt-x86_64-portaudio \
             mingw-w64-ucrt-x86_64-openal \
-            mingw-w64-ucrt-x86_64-shaderc \
-            mingw-w64-ucrt-x86_64-vulkan-headers \
-            mingw-w64-ucrt-x86_64-glslang
+            mingw-w64-ucrt-x86_64-shaderc
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Configure CMake
         run: |
           cmake -GNinja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$PWD/QMPlay2-portable" \
+            -DUSE_VULKAN=OFF \
             -DUSE_FFMPEG_DXVA2=ON \
-            -DUSE_FFMPEG_D3D11VA=ON \
             -DUSE_CUVID=OFF \
             -DUSE_PIPEWIRE=OFF \
             -DUSE_PULSEAUDIO=OFF \
@@ -73,7 +73,7 @@ jobs:
       - name: Install
         run: ninja -C build install
 
-      - name: Create portable marker
+      - name: Create portable package
         run: |
           touch QMPlay2-portable/portable
           # Copy Qt plugins needed at runtime
