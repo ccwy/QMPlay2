@@ -9,9 +9,6 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    defaults:
-      run:
-        shell: msys2 {0}
 
     steps:
       - name: Setup MSYS2
@@ -22,15 +19,16 @@ jobs:
           install: >-
             git
             make
-            ninja
-            cmake
-            pkg-config
             p7zip
 
       - name: Install dependencies
+        shell: msys2 {0}
         run: |
           pacman -S --noconfirm \
             mingw-w64-ucrt-x86_64-gcc \
+            mingw-w64-ucrt-x86_64-cmake \
+            mingw-w64-ucrt-x86_64-ninja \
+            mingw-w64-ucrt-x86_64-pkg-config \
             mingw-w64-ucrt-x86_64-qt6-base \
             mingw-w64-ucrt-x86_64-qt6-tools \
             mingw-w64-ucrt-x86_64-qt6-5compat \
@@ -52,67 +50,78 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Configure CMake
+      - name: Setup UCRT64 environment
+        shell: pwsh
         run: |
-          cmake -GNinja -B build -S . \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$PWD/QMPlay2-portable" \
-            -DUSE_VULKAN=OFF \
-            -DUSE_FFMPEG_DXVA2=ON \
-            -DUSE_CUVID=OFF \
-            -DUSE_PIPEWIRE=OFF \
-            -DUSE_PULSEAUDIO=OFF \
-            -DUSE_ALSA=OFF \
-            -DUSE_XVIDEO=OFF \
-            -DUSE_FFMPEG_AVDEVICE=OFF \
-            -DUSE_FFMPEG_VAAPI=OFF \
-            -DUSE_UPDATES=OFF \
-            -DUSE_FREEDESKTOP_NOTIFICATIONS=OFF \
-            -DUSE_DBUS_PM=OFF \
-            -DUSE_MPRIS2=OFF \
-            -DUSE_RUBBERBAND=OFF \
+          # Add UCRT64 bin to PATH for native Windows CMake to find MinGW tools
+          $msys2 = "C:\msys64"
+          $ucrt64Bin = "$msys2\ucrt64\bin"
+          echo "$ucrt64Bin" >> $env:GITHUB_PATH
+          # Set PKG_CONFIG_PATH
+          echo "PKG_CONFIG_PATH=$msys2\ucrt64\lib\pkgconfig" >> $env:GITHUB_ENV
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cmake -GNinja -B build -S . `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER=gcc `
+            -DCMAKE_CXX_COMPILER=g++.exe `
+            -DCMAKE_INSTALL_PREFIX="$PWD/QMPlay2-portable" `
+            -DCMAKE_FIND_ROOT_PATH="C:/msys64/ucrt64" `
+            -DUSE_VULKAN=OFF `
+            -DUSE_FFMPEG_DXVA2=ON `
+            -DUSE_CUVID=OFF `
+            -DUSE_PIPEWIRE=OFF `
+            -DUSE_PULSEAUDIO=OFF `
+            -DUSE_ALSA=OFF `
+            -DUSE_XVIDEO=OFF `
+            -DUSE_FFMPEG_AVDEVICE=OFF `
+            -DUSE_FFMPEG_VAAPI=OFF `
+            -DUSE_UPDATES=OFF `
+            -DUSE_FREEDESKTOP_NOTIFICATIONS=OFF `
+            -DUSE_DBUS_PM=OFF `
+            -DUSE_MPRIS2=OFF `
+            -DUSE_RUBBERBAND=OFF `
             -DUSE_OPENMPT=OFF
 
       - name: Build
-        run: ninja -C build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ninja -C build
 
       - name: Install
-        run: ninja -C build install
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ninja -C build install
 
       - name: Create portable package
+        shell: pwsh
         run: |
-          touch QMPlay2-portable/portable
-          mkdir -p QMPlay2-portable/platforms
-          mkdir -p QMPlay2-portable/styles
-          mkdir -p QMPlay2-portable/iconengines
-          mkdir -p QMPlay2-portable/imageformats
-          cp /ucrt64/share/qt6/plugins/platforms/qwindows.dll QMPlay2-portable/platforms/
-          cp /ucrt64/share/qt6/plugins/platforms/qdirect2d.dll QMPlay2-portable/platforms/ 2>/dev/null || true
-          cp /ucrt64/share/qt6/plugins/styles/qwindowsvistastyle.dll QMPlay2-portable/styles/ 2>/dev/null || true
-          cp /ucrt64/share/qt6/plugins/iconengines/qsvgicon.dll QMPlay2-portable/iconengines/ 2>/dev/null || true
-          cp /ucrt64/share/qt6/plugins/imageformats/*.dll QMPlay2-portable/imageformats/ 2>/dev/null || true
-          for dll in Qt6Core Qt6Gui Qt6Widgets Qt6Network Qt6Svg Qt6SvgWidgets Qt6OpenGL Qt6OpenGLWidgets Qt6Qml Qt6QmlModels Qt6Core5Compat; do
-            cp /ucrt64/bin/${dll}.dll QMPlay2-portable/ 2>/dev/null || true
-          done
-          for dll in avformat avcodec avutil swscale swresample avfilter avdevice; do
-            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
-          done
-          for dll in ass tag gme sidplayfp cdio cddb portaudio openal; do
-            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
-            cp /ucrt64/bin/${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
-          done
-          cp /ucrt64/bin/libgcc_s_seh-1.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /ucrt64/bin/libstdc++-6.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /ucrt64/bin/libwinpthread-1.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /ucrt64/bin/libgomp-1.dll QMPlay2-portable/ 2>/dev/null || true
-          for dll in zlib zstd brotlicommon brotlidec bz2 lzma png16 harfbuzz freetype fontconfig fribidi unistring iconv intl xml2; do
-            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
-          done
+          $ErrorActionPreference = "Stop"
+          $ucrt64 = "C:\msys64\ucrt64\bin"
+          New-Item -ItemType File -Path "QMPlay2-portable\portable" -Force
+          $dirs = @("platforms", "styles", "iconengines", "imageformats")
+          foreach ($d in $dirs) { New-Item -ItemType Directory -Path "QMPlay2-portable\$d" -Force }
+          Copy-Item "$ucrt64\..\share\qt6\plugins\platforms\qwindows.dll" "QMPlay2-portable\platforms\" -ErrorAction SilentlyContinue
+          $qtDlls = @("Qt6Core","Qt6Gui","Qt6Widgets","Qt6Network","Qt6Svg","Qt6SvgWidgets","Qt6OpenGL","Qt6OpenGLWidgets","Qt6Qml","Qt6QmlModels","Qt6Core5Compat")
+          foreach ($dll in $qtDlls) { Copy-Item "$ucrt64\$dll.dll" "QMPlay2-portable\" -ErrorAction SilentlyContinue }
+          $ffDlls = Get-ChildItem "$ucrt64\libav*.dll","$ucrt64\libsw*.dll" -ErrorAction SilentlyContinue
+          foreach ($f in $ffDlls) { Copy-Item $f.FullName "QMPlay2-portable\" -ErrorAction SilentlyContinue }
+          $otherDlls = Get-ChildItem "$ucrt64\libass*.dll","$ucrt64\libtag*.dll","$ucrt64\libgme*.dll","$ucrt64\libsidplayfp*.dll","$ucrt64\libcdio*.dll","$ucrt64\libcddb*.dll","$ucrt64\libportaudio*.dll","$ucrt64\libopenal*.dll" -ErrorAction SilentlyContinue
+          foreach ($f in $otherDlls) { Copy-Item $f.FullName "QMPlay2-portable\" -ErrorAction SilentlyContinue }
+          $runtimeDlls = @("libgcc_s_seh-1.dll","libstdc++-6.dll","libwinpthread-1.dll","libgomp-1.dll")
+          foreach ($dll in $runtimeDlls) { Copy-Item "$ucrt64\$dll" "QMPlay2-portable\" -ErrorAction SilentlyContinue }
 
       - name: Package portable 7z
+        shell: pwsh
         run: |
-          VERSION=$(cat version | sh)
-          7z a -t7z -mx9 "QMPlay2-Win64-${VERSION}-portable.7z" QMPlay2-portable/
+          $ErrorActionPreference = "Stop"
+          $version = & bash -c "cat version | sh"
+          7z a -t7z -mx9 "QMPlay2-Win64-${version}-portable.7z" QMPlay2-portable/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
