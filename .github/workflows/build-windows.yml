@@ -1,0 +1,131 @@
+name: Build Windows Portable
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            ninja
+            cmake
+            pkg-config
+            gcc
+            p7zip
+
+      - name: Install dependencies
+        run: |
+          pacman -S --noconfirm \
+            mingw-w64-x86_64-qt6-base \
+            mingw-w64-x86_64-qt6-tools \
+            mingw-w64-x86_64-qt6-5compat \
+            mingw-w64-x86_64-qt6-svg \
+            mingw-w64-x86_64-qt6-declarative \
+            mingw-w64-x86_64-ffmpeg \
+            mingw-w64-x86_64-libass \
+            mingw-w64-x86_64-taglib \
+            mingw-w64-x86_64-libgme \
+            mingw-w64-x86_64-libsidplayfp \
+            mingw-w64-x86_64-libcdio \
+            mingw-w64-x86_64-libcddb \
+            mingw-w64-x86_64-portaudio \
+            mingw-w64-x86_64-openal \
+            mingw-w64-x86_64-shaderc \
+            mingw-w64-x86_64-vulkan-headers \
+            mingw-w64-x86_64-glslang
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: |
+          cmake -GNinja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/QMPlay2-portable" \
+            -DUSE_FFMPEG_DXVA2=ON \
+            -DUSE_FFMPEG_D3D11VA=ON \
+            -DUSE_CUVID=OFF \
+            -DUSE_PIPEWIRE=OFF \
+            -DUSE_PULSEAUDIO=OFF \
+            -DUSE_ALSA=OFF \
+            -DUSE_XVIDEO=OFF \
+            -DUSE_FFMPEG_AVDEVICE=OFF \
+            -DUSE_UPDATES=OFF
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Install
+        run: ninja -C build install
+
+      - name: Create portable marker
+        run: |
+          touch QMPlay2-portable/portable
+          # Copy Qt plugins needed at runtime
+          mkdir -p QMPlay2-portable/platforms
+          mkdir -p QMPlay2-portable/styles
+          mkdir -p QMPlay2-portable/iconengines
+          mkdir -p QMPlay2-portable/imageformats
+          cp /mingw64/share/qt6/plugins/platforms/qwindows.dll QMPlay2-portable/platforms/
+          cp /mingw64/share/qt6/plugins/platforms/qdirect2d.dll QMPlay2-portable/platforms/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/styles/qwindowsvistastyle.dll QMPlay2-portable/styles/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/iconengines/qsvgicon.dll QMPlay2-portable/iconengines/ 2>/dev/null || true
+          cp /mingw64/share/qt6/plugins/imageformats/*.dll QMPlay2-portable/imageformats/ 2>/dev/null || true
+          # Copy Qt6 DLLs
+          for dll in Qt6Core Qt6Gui Qt6Widgets Qt6Network Qt6Svg Qt6SvgWidgets Qt6OpenGL Qt6OpenGLWidgets Qt6Qml Qt6QmlModels Qt6Core5Compat Qt6DBus; do
+            cp /mingw64/bin/${dll}.dll QMPlay2-portable/ 2>/dev/null || true
+          done
+          # Copy FFmpeg DLLs
+          for dll in avformat avcodec avutil swscale swresample avfilter avdevice; do
+            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+          done
+          # Copy other runtime DLLs
+          for dll in ass tag gme sidplayfp cdio cddb portaudio openal; do
+            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /mingw64/bin/${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+          done
+          # Copy libgcc/libstdc++/libwinpthread
+          cp /mingw64/bin/libgcc_s_seh-1.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /mingw64/bin/libstdc++-6.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /mingw64/bin/libwinpthread-1.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /mingw64/bin/libgomp-1.dll QMPlay2-portable/ 2>/dev/null || true
+          # Copy zlib, libpng, etc.
+          for dll in zlib zstd brotlicommon brotlidec bz2 lzma png16 harfbuzz freetype fontconfig fribidi unistring iconv intl xml2; do
+            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+          done
+
+      - name: Package portable 7z
+        run: |
+          VERSION=$(cat version | sh)
+          7z a -t7z -mx9 "QMPlay2-Win64-${VERSION}-portable.7z" QMPlay2-portable/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QMPlay2-Win64-portable
+          path: "*.7z"
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "*.7z"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
