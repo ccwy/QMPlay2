@@ -105,48 +105,30 @@ jobs:
           $env:PATH = "$ucrt64\bin;$env:PATH"
           ninja -C build install
 
-      - name: Collect DLL dependencies
-        shell: msys2 {0}
-        run: |
-          # Use ldd to find all DLL dependencies of the built exe and modules
-          UCRT64_BIN="/ucrt64/bin"
-          DEST="QMPlay2-portable"
-
-          # Find all .exe and .dll in the portable dir, collect their deps
-          find "$DEST" -name '*.exe' -o -name '*.dll' | while read -r bin; do
-            ldd "$bin" 2>/dev/null | grep "$UCRT64_BIN" | awk '{print $3}' | while read -r dll; do
-              if [ -f "$dll" ] && [ ! -f "$DEST/$(basename "$dll")" ]; then
-                cp "$dll" "$DEST/"
-              fi
-            done
-          done
-
-          # Repeat for newly copied DLLs (transitive deps)
-          find "$DEST" -maxdepth 1 -name '*.dll' | while read -r bin; do
-            ldd "$bin" 2>/dev/null | grep "$UCRT64_BIN" | awk '{print $3}' | while read -r dll; do
-              if [ -f "$dll" ] && [ ! -f "$DEST/$(basename "$dll")" ]; then
-                cp "$dll" "$DEST/"
-              fi
-            done
-          done
-
-          echo "=== Copied DLLs ==="
-          ls "$DEST"/*.dll | wc -l
-          echo "DLLs total"
-
-      - name: Add Qt plugins
+      - name: Create portable package
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $ucrt64 = "${{ steps.msys2.outputs.msys2-location }}\ucrt64"
+          $qtPlugins = "$ucrt64\share\qt6\plugins"
+
+          # Mark as portable
           New-Item -ItemType File -Path "QMPlay2-portable\portable" -Force
+
+          # Copy ALL DLLs from UCRT64 bin — brute force but reliable
+          Copy-Item "$ucrt64\bin\*.dll" "QMPlay2-portable\" -ErrorAction SilentlyContinue
+
+          # Copy Qt plugins
           $dirs = @("platforms", "styles", "iconengines", "imageformats")
           foreach ($d in $dirs) { New-Item -ItemType Directory -Path "QMPlay2-portable\$d" -Force }
-          $qtPlugins = "$ucrt64\share\qt6\plugins"
           Copy-Item "$qtPlugins\platforms\qwindows.dll" "QMPlay2-portable\platforms\" -ErrorAction SilentlyContinue
           Copy-Item "$qtPlugins\platforms\qdirect2d.dll" "QMPlay2-portable\platforms\" -ErrorAction SilentlyContinue
           Copy-Item "$qtPlugins\styles\qwindowsvistastyle.dll" "QMPlay2-portable\styles\" -ErrorAction SilentlyContinue
           Copy-Item "$qtPlugins\iconengines\qsvgicon.dll" "QMPlay2-portable\iconengines\" -ErrorAction SilentlyContinue
           Copy-Item "$qtPlugins\imageformats\*.dll" "QMPlay2-portable\imageformats\" -ErrorAction SilentlyContinue
+
+          $dllCount = (Get-ChildItem "QMPlay2-portable\*.dll").Count
+          Write-Host "Copied $dllCount DLLs to portable directory"
 
       - name: Package portable 7z
         shell: pwsh
