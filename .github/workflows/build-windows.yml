@@ -54,6 +54,17 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Fix QtWinExtras symlink
+        shell: pwsh
+        run: |
+          $link = "src\gui\Windows\qt\QtWinExtras"
+          $target = "qtwinextras_submodule\src\winextras"
+          if (!(Test-Path $link) -or (Get-Item $link).LinkType -ne "Junction") {
+            if (Test-Path $link) { Remove-Item $link -Force -Recurse }
+            cmd /c mklink /J $link $target
+          }
+          Test-Path "$link\qwinevent.cpp"
+
       - name: Configure CMake
         shell: pwsh
         run: |
