@@ -46,6 +46,9 @@ jobs:
             mingw-w64-ucrt-x86_64-openal \
             mingw-w64-ucrt-x86_64-shaderc
 
+      - name: Enable git symlinks
+        run: git config --global core.symlinks true
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
