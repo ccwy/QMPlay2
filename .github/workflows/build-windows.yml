@@ -46,9 +46,6 @@ jobs:
             mingw-w64-ucrt-x86_64-openal \
             mingw-w64-ucrt-x86_64-shaderc
 
-      - name: Enable git symlinks
-        run: git config --global core.symlinks true
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -57,22 +54,19 @@ jobs:
       - name: Fix QtWinExtras symlink
         shell: pwsh
         run: |
-          $link = (Resolve-Path "src\gui\Windows\qt").Path + "\QtWinExtras"
-          $target = (Resolve-Path "src\gui\Windows\qt\qtwinextras_submodule\src\winextras").Path
-          if (Test-Path $link) { Remove-Item $link -Force -Recurse }
-          cmd /c mklink /J "$link" "$target"
-          if (!(Test-Path "$link\qwinevent.cpp")) {
-            Write-Error "qwinevent.cpp not found via junction: $link"
-            exit 1
-          }
-          Write-Host "Junction OK: $link -> $target"
+          # QtWinExtras is a symlink on Linux; on Windows just copy the files
+          $src = "src\gui\Windows\qt\qtwinextras_submodule\src\winextras"
+          $dst = "src\gui\Windows\qt\QtWinExtras"
+          if (Test-Path $dst) { Remove-Item $dst -Force -Recurse }
+          Copy-Item $src $dst -Recurse
+          Write-Host "Copied winextras to QtWinExtras"
+          Test-Path "$dst\qwinevent.cpp"
 
       - name: Configure CMake
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $ucrt64 = "${{ steps.msys2.outputs.msys2-location }}\ucrt64"
-          Write-Host "MSYS2 location: $ucrt64"
           $env:PATH = "$ucrt64\bin;$env:PATH"
           $env:PKG_CONFIG_PATH = "$ucrt64\lib\pkgconfig"
           cmake -GNinja -B build -S . `
