@@ -54,12 +54,10 @@ jobs:
       - name: Fix QtWinExtras symlink
         shell: pwsh
         run: |
-          # QtWinExtras is a symlink on Linux; on Windows just copy the files
           $src = "src\gui\Windows\qt\qtwinextras_submodule\src\winextras"
           $dst = "src\gui\Windows\qt\QtWinExtras"
           if (Test-Path $dst) { Remove-Item $dst -Force -Recurse }
           Copy-Item $src $dst -Recurse
-          Write-Host "Copied winextras to QtWinExtras"
           Test-Path "$dst\qwinevent.cpp"
 
       - name: Configure CMake
@@ -107,25 +105,48 @@ jobs:
           $env:PATH = "$ucrt64\bin;$env:PATH"
           ninja -C build install
 
-      - name: Create portable package
+      - name: Collect DLL dependencies
+        shell: msys2 {0}
+        run: |
+          # Use ldd to find all DLL dependencies of the built exe and modules
+          UCRT64_BIN="/ucrt64/bin"
+          DEST="QMPlay2-portable"
+
+          # Find all .exe and .dll in the portable dir, collect their deps
+          find "$DEST" -name '*.exe' -o -name '*.dll' | while read -r bin; do
+            ldd "$bin" 2>/dev/null | grep "$UCRT64_BIN" | awk '{print $3}' | while read -r dll; do
+              if [ -f "$dll" ] && [ ! -f "$DEST/$(basename "$dll")" ]; then
+                cp "$dll" "$DEST/"
+              fi
+            done
+          done
+
+          # Repeat for newly copied DLLs (transitive deps)
+          find "$DEST" -maxdepth 1 -name '*.dll' | while read -r bin; do
+            ldd "$bin" 2>/dev/null | grep "$UCRT64_BIN" | awk '{print $3}' | while read -r dll; do
+              if [ -f "$dll" ] && [ ! -f "$DEST/$(basename "$dll")" ]; then
+                cp "$dll" "$DEST/"
+              fi
+            done
+          done
+
+          echo "=== Copied DLLs ==="
+          ls "$DEST"/*.dll | wc -l
+          echo "DLLs total"
+
+      - name: Add Qt plugins
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
           $ucrt64 = "${{ steps.msys2.outputs.msys2-location }}\ucrt64"
-          $env:PATH = "$ucrt64\bin;$env:PATH"
           New-Item -ItemType File -Path "QMPlay2-portable\portable" -Force
           $dirs = @("platforms", "styles", "iconengines", "imageformats")
           foreach ($d in $dirs) { New-Item -ItemType Directory -Path "QMPlay2-portable\$d" -Force }
-          $qtPlugins = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\share\qt6\plugins"
+          $qtPlugins = "$ucrt64\share\qt6\plugins"
           Copy-Item "$qtPlugins\platforms\qwindows.dll" "QMPlay2-portable\platforms\" -ErrorAction SilentlyContinue
-          $qtDlls = @("Qt6Core","Qt6Gui","Qt6Widgets","Qt6Network","Qt6Svg","Qt6SvgWidgets","Qt6OpenGL","Qt6OpenGLWidgets","Qt6Qml","Qt6QmlModels","Qt6Core5Compat")
-          foreach ($dll in $qtDlls) { Copy-Item "$ucrt64\bin\$dll.dll" "QMPlay2-portable\" -ErrorAction SilentlyContinue }
-          $ffDlls = Get-ChildItem "$ucrt64\bin\libav*.dll","$ucrt64\bin\libsw*.dll" -ErrorAction SilentlyContinue
-          foreach ($f in $ffDlls) { Copy-Item $f.FullName "QMPlay2-portable\" -ErrorAction SilentlyContinue }
-          $otherDlls = Get-ChildItem "$ucrt64\bin\libass*.dll","$ucrt64\bin\libtag*.dll","$ucrt64\bin\libgme*.dll","$ucrt64\bin\libsidplayfp*.dll","$ucrt64\bin\libcdio*.dll","$ucrt64\bin\libcddb*.dll","$ucrt64\bin\libportaudio*.dll","$ucrt64\bin\libopenal*.dll" -ErrorAction SilentlyContinue
-          foreach ($f in $otherDlls) { Copy-Item $f.FullName "QMPlay2-portable\" -ErrorAction SilentlyContinue }
-          $runtimeDlls = @("libgcc_s_seh-1.dll","libstdc++-6.dll","libwinpthread-1.dll","libgomp-1.dll")
-          foreach ($dll in $runtimeDlls) { Copy-Item "$ucrt64\bin\$dll" "QMPlay2-portable\" -ErrorAction SilentlyContinue }
+          Copy-Item "$qtPlugins\platforms\qdirect2d.dll" "QMPlay2-portable\platforms\" -ErrorAction SilentlyContinue
+          Copy-Item "$qtPlugins\styles\qwindowsvistastyle.dll" "QMPlay2-portable\styles\" -ErrorAction SilentlyContinue
+          Copy-Item "$qtPlugins\iconengines\qsvgicon.dll" "QMPlay2-portable\iconengines\" -ErrorAction SilentlyContinue
+          Copy-Item "$qtPlugins\imageformats\*.dll" "QMPlay2-portable\imageformats\" -ErrorAction SilentlyContinue
 
       - name: Package portable 7z
         shell: pwsh
