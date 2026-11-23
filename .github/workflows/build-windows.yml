@@ -17,7 +17,7 @@ jobs:
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
             git
@@ -31,23 +31,23 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -S --noconfirm \
-            mingw-w64-x86_64-qt6-base \
-            mingw-w64-x86_64-qt6-tools \
-            mingw-w64-x86_64-qt6-5compat \
-            mingw-w64-x86_64-qt6-svg \
-            mingw-w64-x86_64-qt6-declarative \
-            mingw-w64-x86_64-ffmpeg \
-            mingw-w64-x86_64-libass \
-            mingw-w64-x86_64-taglib \
-            mingw-w64-x86_64-libgme \
-            mingw-w64-x86_64-libsidplayfp \
-            mingw-w64-x86_64-libcdio \
-            mingw-w64-x86_64-libcddb \
-            mingw-w64-x86_64-portaudio \
-            mingw-w64-x86_64-openal \
-            mingw-w64-x86_64-shaderc \
-            mingw-w64-x86_64-vulkan-headers \
-            mingw-w64-x86_64-glslang
+            mingw-w64-ucrt-x86_64-qt6-base \
+            mingw-w64-ucrt-x86_64-qt6-tools \
+            mingw-w64-ucrt-x86_64-qt6-5compat \
+            mingw-w64-ucrt-x86_64-qt6-svg \
+            mingw-w64-ucrt-x86_64-qt6-declarative \
+            mingw-w64-ucrt-x86_64-ffmpeg \
+            mingw-w64-ucrt-x86_64-libass \
+            mingw-w64-ucrt-x86_64-taglib \
+            mingw-w64-ucrt-x86_64-libgme \
+            mingw-w64-ucrt-x86_64-libsidplayfp \
+            mingw-w64-ucrt-x86_64-libcdio \
+            mingw-w64-ucrt-x86_64-libcddb \
+            mingw-w64-ucrt-x86_64-portaudio \
+            mingw-w64-ucrt-x86_64-openal \
+            mingw-w64-ucrt-x86_64-shaderc \
+            mingw-w64-ucrt-x86_64-vulkan-headers \
+            mingw-w64-ucrt-x86_64-glslang
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,32 +81,32 @@ jobs:
           mkdir -p QMPlay2-portable/styles
           mkdir -p QMPlay2-portable/iconengines
           mkdir -p QMPlay2-portable/imageformats
-          cp /mingw64/share/qt6/plugins/platforms/qwindows.dll QMPlay2-portable/platforms/
-          cp /mingw64/share/qt6/plugins/platforms/qdirect2d.dll QMPlay2-portable/platforms/ 2>/dev/null || true
-          cp /mingw64/share/qt6/plugins/styles/qwindowsvistastyle.dll QMPlay2-portable/styles/ 2>/dev/null || true
-          cp /mingw64/share/qt6/plugins/iconengines/qsvgicon.dll QMPlay2-portable/iconengines/ 2>/dev/null || true
-          cp /mingw64/share/qt6/plugins/imageformats/*.dll QMPlay2-portable/imageformats/ 2>/dev/null || true
+          cp /ucrt64/share/qt6/plugins/platforms/qwindows.dll QMPlay2-portable/platforms/
+          cp /ucrt64/share/qt6/plugins/platforms/qdirect2d.dll QMPlay2-portable/platforms/ 2>/dev/null || true
+          cp /ucrt64/share/qt6/plugins/styles/qwindowsvistastyle.dll QMPlay2-portable/styles/ 2>/dev/null || true
+          cp /ucrt64/share/qt6/plugins/iconengines/qsvgicon.dll QMPlay2-portable/iconengines/ 2>/dev/null || true
+          cp /ucrt64/share/qt6/plugins/imageformats/*.dll QMPlay2-portable/imageformats/ 2>/dev/null || true
           # Copy Qt6 DLLs
           for dll in Qt6Core Qt6Gui Qt6Widgets Qt6Network Qt6Svg Qt6SvgWidgets Qt6OpenGL Qt6OpenGLWidgets Qt6Qml Qt6QmlModels Qt6Core5Compat Qt6DBus; do
-            cp /mingw64/bin/${dll}.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /ucrt64/bin/${dll}.dll QMPlay2-portable/ 2>/dev/null || true
           done
           # Copy FFmpeg DLLs
           for dll in avformat avcodec avutil swscale swresample avfilter avdevice; do
-            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
           # Copy other runtime DLLs
           for dll in ass tag gme sidplayfp cdio cddb portaudio openal; do
-            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
-            cp /mingw64/bin/${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /ucrt64/bin/${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
           # Copy libgcc/libstdc++/libwinpthread
-          cp /mingw64/bin/libgcc_s_seh-1.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /mingw64/bin/libstdc++-6.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /mingw64/bin/libwinpthread-1.dll QMPlay2-portable/ 2>/dev/null || true
-          cp /mingw64/bin/libgomp-1.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /ucrt64/bin/libgcc_s_seh-1.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /ucrt64/bin/libstdc++-6.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /ucrt64/bin/libwinpthread-1.dll QMPlay2-portable/ 2>/dev/null || true
+          cp /ucrt64/bin/libgomp-1.dll QMPlay2-portable/ 2>/dev/null || true
           # Copy zlib, libpng, etc.
           for dll in zlib zstd brotlicommon brotlidec bz2 lzma png16 harfbuzz freetype fontconfig fribidi unistring iconv intl xml2; do
-            cp /mingw64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
+            cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
 
       - name: Package portable 7z
