@@ -69,7 +69,7 @@ Playlist *Playlist::create(const QString &url, OpenMode openMode, QString *name)
                     {
                         IOController<Reader> &reader = playlist->ioCtrl.toRef<Reader>();
                         Reader::create(url, reader); //TODO przerywanie (po co?)
-                        if (reader && reader->size() <= 0)
+                        if (reader && reader->size() < 0)
                             reader.reset();
                     } break;
                     case WriteOnly:
@@ -104,7 +104,25 @@ QList<QByteArray> Playlist::readLines()
     QByteArray data = reader->read(3);
     if (data.startsWith("\xEF\xBB\xBF")) //Remove UTF-8 BOM
         data.clear();
-    data.append(reader->read(reader->size() - reader->pos()));
+
+    const qint64 remaining = reader->size() - reader->pos();
+    if (remaining > 0)
+    {
+        // 有 Content-Length，一次性读取剩余内容
+        data.append(reader->read(remaining));
+    }
+    else
+    {
+        // 无 Content-Length（size() 返回 0 或等于 pos()），分块读取直到 atEnd()
+        constexpr qint64 chunkSize = 65536;
+        while (reader->readyRead() && !reader->atEnd())
+        {
+            const QByteArray chunk = reader->read(chunkSize);
+            if (chunk.isEmpty())
+                break;
+            data.append(chunk);
+        }
+    }
 
     return data.replace('\r', '\n').split('\n');
 }
