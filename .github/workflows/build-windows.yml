@@ -65,10 +65,13 @@ jobs:
             -DUSE_ALSA=OFF \
             -DUSE_XVIDEO=OFF \
             -DUSE_FFMPEG_AVDEVICE=OFF \
+            -DUSE_FFMPEG_VAAPI=OFF \
             -DUSE_UPDATES=OFF \
             -DUSE_FREEDESKTOP_NOTIFICATIONS=OFF \
             -DUSE_DBUS_PM=OFF \
-            -DUSE_MPRIS2=OFF
+            -DUSE_MPRIS2=OFF \
+            -DUSE_RUBBERBAND=OFF \
+            -DUSE_OPENMPT=OFF
 
       - name: Build
         run: ninja -C build
