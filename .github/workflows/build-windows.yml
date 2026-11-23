@@ -57,6 +57,7 @@ jobs:
           cmake -GNinja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$PWD/QMPlay2-portable" \
+            -DCMAKE_SYSTEM_NAME=Windows \
             -DUSE_VULKAN=OFF \
             -DUSE_FFMPEG_DXVA2=ON \
             -DUSE_CUVID=OFF \
@@ -65,7 +66,10 @@ jobs:
             -DUSE_ALSA=OFF \
             -DUSE_XVIDEO=OFF \
             -DUSE_FFMPEG_AVDEVICE=OFF \
-            -DUSE_UPDATES=OFF
+            -DUSE_UPDATES=OFF \
+            -DUSE_FREEDESKTOP_NOTIFICATIONS=OFF \
+            -DUSE_DBUS_PM=OFF \
+            -DUSE_MPRIS2=OFF
 
       - name: Build
         run: ninja -C build
@@ -76,7 +80,6 @@ jobs:
       - name: Create portable package
         run: |
           touch QMPlay2-portable/portable
-          # Copy Qt plugins needed at runtime
           mkdir -p QMPlay2-portable/platforms
           mkdir -p QMPlay2-portable/styles
           mkdir -p QMPlay2-portable/iconengines
@@ -86,25 +89,20 @@ jobs:
           cp /ucrt64/share/qt6/plugins/styles/qwindowsvistastyle.dll QMPlay2-portable/styles/ 2>/dev/null || true
           cp /ucrt64/share/qt6/plugins/iconengines/qsvgicon.dll QMPlay2-portable/iconengines/ 2>/dev/null || true
           cp /ucrt64/share/qt6/plugins/imageformats/*.dll QMPlay2-portable/imageformats/ 2>/dev/null || true
-          # Copy Qt6 DLLs
           for dll in Qt6Core Qt6Gui Qt6Widgets Qt6Network Qt6Svg Qt6SvgWidgets Qt6OpenGL Qt6OpenGLWidgets Qt6Qml Qt6QmlModels Qt6Core5Compat Qt6DBus; do
             cp /ucrt64/bin/${dll}.dll QMPlay2-portable/ 2>/dev/null || true
           done
-          # Copy FFmpeg DLLs
           for dll in avformat avcodec avutil swscale swresample avfilter avdevice; do
             cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
-          # Copy other runtime DLLs
           for dll in ass tag gme sidplayfp cdio cddb portaudio openal; do
             cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
             cp /ucrt64/bin/${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
-          # Copy libgcc/libstdc++/libwinpthread
           cp /ucrt64/bin/libgcc_s_seh-1.dll QMPlay2-portable/ 2>/dev/null || true
           cp /ucrt64/bin/libstdc++-6.dll QMPlay2-portable/ 2>/dev/null || true
           cp /ucrt64/bin/libwinpthread-1.dll QMPlay2-portable/ 2>/dev/null || true
           cp /ucrt64/bin/libgomp-1.dll QMPlay2-portable/ 2>/dev/null || true
-          # Copy zlib, libpng, etc.
           for dll in zlib zstd brotlicommon brotlidec bz2 lzma png16 harfbuzz freetype fontconfig fribidi unistring iconv intl xml2; do
             cp /ucrt64/bin/lib${dll}-*.dll QMPlay2-portable/ 2>/dev/null || true
           done
