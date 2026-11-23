@@ -57,13 +57,15 @@ jobs:
       - name: Fix QtWinExtras symlink
         shell: pwsh
         run: |
-          $link = "src\gui\Windows\qt\QtWinExtras"
-          $target = "qtwinextras_submodule\src\winextras"
-          if (!(Test-Path $link) -or (Get-Item $link).LinkType -ne "Junction") {
-            if (Test-Path $link) { Remove-Item $link -Force -Recurse }
-            cmd /c mklink /J $link $target
+          $link = (Resolve-Path "src\gui\Windows\qt").Path + "\QtWinExtras"
+          $target = (Resolve-Path "src\gui\Windows\qt\qtwinextras_submodule\src\winextras").Path
+          if (Test-Path $link) { Remove-Item $link -Force -Recurse }
+          cmd /c mklink /J "$link" "$target"
+          if (!(Test-Path "$link\qwinevent.cpp")) {
+            Write-Error "qwinevent.cpp not found via junction: $link"
+            exit 1
           }
-          Test-Path "$link\qwinevent.cpp"
+          Write-Host "Junction OK: $link -> $target"
 
       - name: Configure CMake
         shell: pwsh
